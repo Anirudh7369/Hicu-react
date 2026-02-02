@@ -1,8 +1,10 @@
 # Dependencies
 node_modules/
+functions/node_modules/
 /.pnp
 .pnp.js
 package-lock.json
+functions/package-lock.json
 
 # Testing
 /coverage

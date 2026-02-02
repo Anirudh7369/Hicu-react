@@ -86,6 +86,13 @@ service cloud.firestore {
       allow write: if isAllowedUser() && userEmail() == userId;
     }
 
+    // --- FCM Tokens for Push Notifications ---
+    match /fcmTokens/{emailDocId} {
+      // Users can only read and write their own FCM token
+      allow read: if isAllowedUser() && userEmail() == emailDocId;
+      allow write: if isAllowedUser() && userEmail() == emailDocId;
+    }
+
     // --- Allowlist collection rules ---
     // Users can ONLY read their own email document to check if they're allowed
     // Nobody can write allowlist from app (admin-only via Firebase Console)

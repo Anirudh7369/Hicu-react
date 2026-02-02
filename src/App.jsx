@@ -8,6 +8,11 @@ import { auth, googleProvider } from './firebase';
 import { isUserAllowed } from './services/allowlistService';
 import { updateUserProfile, getUserProfile } from './services/userProfileService';
 import { initializeUserKeyPair } from './crypto/publicKeyManager';
+import {
+  requestNotificationPermission,
+  getNotificationPermission,
+  onForegroundMessage
+} from './services/notificationService';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login');
@@ -18,6 +23,7 @@ function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   // Helper function to load and merge user data from Auth and Firestore
   const loadUserData = async (authUser) => {
@@ -83,6 +89,18 @@ function App() {
           const mergedUser = await loadUserData(currentUser);
           setUser(mergedUser);
           setCurrentPage('chatlist');
+
+          // Check and request notification permission after login
+          setTimeout(() => {
+            const notifPermission = getNotificationPermission();
+            if (notifPermission === 'default') {
+              // User hasn't decided yet - show prompt
+              setShowNotificationPrompt(true);
+            } else if (notifPermission === 'granted') {
+              // Already granted - request token silently
+              requestNotificationPermission(currentUser.email).catch(console.error);
+            }
+          }, 2000); // Wait 2 seconds after login to show notification prompt
         } else {
           // User is NOT allowed - sign them out and show message
           await signOut(auth);
@@ -130,6 +148,22 @@ function App() {
       window.removeEventListener('sw-update-available', handleUpdateAvailable);
     };
   }, []);
+
+  // Listen for foreground messages (when app is open)
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = onForegroundMessage((payload) => {
+      console.log('Foreground message received:', payload);
+      // Message will be displayed as browser notification by the service
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [user]);
 
   const handleUpdateApp = async () => {
     console.log('🔄 App: Update button clicked!');
@@ -246,6 +280,26 @@ function App() {
     setCurrentPage('chatlist');
   };
 
+  // Handle notification permission request
+  const handleEnableNotifications = async () => {
+    if (!user?.email) return;
+
+    try {
+      const token = await requestNotificationPermission(user.email);
+      if (token) {
+        console.log('✅ Notifications enabled');
+      }
+      setShowNotificationPrompt(false);
+    } catch (error) {
+      console.error('Error enabling notifications:', error);
+      setShowNotificationPrompt(false);
+    }
+  };
+
+  const handleDismissNotifications = () => {
+    setShowNotificationPrompt(false);
+  };
+
   // Handle profile save - reload user data to pick up changes
   const handleProfileSave = async () => {
     if (!user?.uid) return;
@@ -279,6 +333,39 @@ function App() {
 
   return (
     <div className="App">
+      {/* Notification Permission Prompt */}
+      {showNotificationPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-dark border border-white/10 rounded-lg max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-primary/20 p-3 rounded-full">
+                <span className="material-symbols-outlined text-primary text-2xl">notifications</span>
+              </div>
+              <h3 className="text-white text-xl font-bold">Enable Notifications</h3>
+            </div>
+
+            <p className="text-gray-300 text-sm mb-6">
+              Stay updated when you receive new messages. We&apos;ll send you a notification, but won&apos;t reveal message content for privacy.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDismissNotifications}
+                className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-medium"
+              >
+                Not Now
+              </button>
+              <button
+                onClick={handleEnableNotifications}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6A11CB] to-[#FC5C7D] hover:opacity-90 text-white rounded-lg transition-opacity font-medium"
+              >
+                Enable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Update notification banner */}
       {updateAvailable && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-primary text-white px-4 py-3 flex items-center justify-between shadow-lg">
