@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function isAllowedUser() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/allowed_emails/$(userEmail()));
+    }
+
+    function isParticipant(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId))
+        .data.participants.hasAny([userEmail()]);
+    }
+
+    // --- DM Chat Documents ---
+    match /chats/{chatId} {
+      // Allow read if document doesn't exist OR user is a participant
+      allow read: if isAllowedUser() &&
+        (resource == null || resource.data.participants.hasAny([userEmail()]));
+      allow create: if isAllowedUser() &&
+        request.resource.data.participants.hasAny([userEmail()]) &&
+        request.resource.data.participants.size() == 2;
+      allow update: if isAllowedUser() &&
+        resource.data.participants.hasAny([userEmail()]);
+      allow delete: if false;
+
+      // --- Messages inside a chat ---
+      match /messages/{messageId} {
+        // Allow reading messages if user is a participant
+        allow read: if isAllowedUser() && isParticipant(chatId);
+
+        // Allow creating messages if user is a participant
+        allow create: if isAllowedUser() && isParticipant(chatId);
+
+        // Allow updating messages for view once tracking and read receipts
+        allow update: if isAllowedUser() &&
+          isParticipant(chatId) &&
+          (
+            // View once tracking: Users can only add their email to viewedBy array
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedBy']) &&
+             request.resource.data.viewedBy.hasAll(resource.data.viewedBy) &&
+             request.resource.data.viewedBy.size() == resource.data.viewedBy.size() + 1 &&
+             request.resource.data.viewedBy.hasAny([userEmail()]))
+            ||
+            // Read receipts: Users can only add their email to readBy array
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+             request.resource.data.readBy.hasAll(resource.data.get('readBy', [])) &&
+             request.resource.data.readBy.size() == resource.data.get('readBy', []).size() + 1 &&
+             request.resource.data.readBy.hasAny([userEmail()]))
+          );
+
+        // Allow deleting messages
+        allow delete: if isAllowedUser() &&
+          isParticipant(chatId) &&
+          (
+            // View once messages after viewing
+            resource.data.viewOnce == true ||
+            // Messages sent by current user (unsend)
+            resource.data.email.lower() == userEmail()
+          );
+      }
+    }
+
+    // --- User Profiles ---
+    match /users/{userId} {
+      // Anyone can read user profiles (for displaying names in chats)
+      allow read: if isAllowedUser();
+      // Users can only write their own profile
+      allow write: if isAllowedUser() && userEmail() == userId;
+    }
+
+    // --- Public Keys for E2E Encryption ---
+    match /publicKeys/{userId} {
+      // Anyone can read public keys (needed for encryption)
+      allow read: if isAllowedUser();
+      // Users can only write their own public key
+      allow write: if isAllowedUser() && userEmail() == userId;
+    }
+
+    // --- Allowlist collection rules ---
+    // Users can ONLY read their own email document to check if they're allowed
+    // Nobody can write allowlist from app (admin-only via Firebase Console)
+    match /allowed_emails/{emailDocId} {
+      allow read: if isSignedIn() && userEmail() == emailDocId;
+      allow write: if false;
+    }
+  }
+}

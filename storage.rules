@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Allow authenticated users to upload and read their own profile pictures
+    match /profile-pictures/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');  // Only images
+    }
+
+    // Allow authenticated users to upload and read encrypted media in their chats
+    match /chats/{chatId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                            && request.resource.size < 10 * 1024 * 1024;  // Max 10MB
+      allow delete: if request.auth != null;  // Allow deletion for view once functionality
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "short_name": "Hicu",
+  "name": "Hicu - Secure Chat Application",
+  "description": "End-to-end encrypted real-time chat application with RSA encryption",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#A076F9",
+  "background_color": "#000000",
+  "orientation": "portrait"
+}

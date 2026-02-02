@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+package-lock.json
+
+# Testing
+/coverage
+
+# Production
+/build
+
+# Environment variables (IMPORTANT: Never commit these!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+src/.env
+
+# Firebase
+.firebase/
+.firebaserc
+*-debug.log
+.runtimeconfig.json
+firebase-debug.log
+firestore-debug.log
+database-debug.log
+ui-debug.log
+pubsub-debug.log
+
+# Service Account Keys (CRITICAL: NEVER commit these!)
+*service-account*.json
+*serviceAccountKey*.json
+credentials.json
+*-firebase-adminsdk-*.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.history/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# Misc
+.eslintcache
+.terraform/
+.vagrant/
